@@ -378,7 +378,7 @@
                     
                     let posts = JSON.parse(localStorage.getItem('bunnii_app_posts')) || [];
                     posts = posts.map(p => { if(p.email === activeUserSession.email) p.avatar = imgString; return p; });
-                    localStorage.setItem('bunnii_app_posts', JSON.stringify(posts));
+                    // posts को Firebase में भेजने के लिए firebase.database().ref('posts').set(posts);
                     
                     alert("Profile visual configuration committed!"); loadPosts();
                 };
@@ -432,9 +432,9 @@
             activeUserSession.username = parsedHandle;
             localStorage.setItem('bunnii_app_session', JSON.stringify(activeUserSession));
             
-            let posts = JSON.parse(localStorage.getItem('bunnii_app_posts')) || [];
+            firebase.database().ref('posts').on('value', (snapshot) => {     const posts = snapshot.val() || [];     // अब यहाँ से आप अपने 'loadPosts()' फंक्शन को कॉल करें ताकि UI अपडेट हो जाए     renderPostsToUI(posts);  });
             posts = posts.map(p => { if(p.email === activeUserSession.email) p.user = parsedHandle; return p; });
-            localStorage.setItem('bunnii_app_posts', JSON.stringify(posts));
+            // 'posts' नाम के नोड में सारा डेटा सेव होगा firebase.database().ref('posts').set(posts);
 
             alert("Identity profile handle data synchronized!"); synchronizeSystemState();
         }
@@ -561,7 +561,7 @@
             };
 
             let posts = JSON.parse(localStorage.getItem('bunnii_app_posts')) || [];
-            posts.unshift(postPayload); localStorage.setItem('bunnii_app_posts', JSON.stringify(posts)); 
+            posts.unshift(postPayload); // 'posts' नाम के नोड में सारा डेटा सेव होगा firebase.database().ref('posts').set(posts); 
             document.getElementById('postText').value = ""; clearSelectedMedia(); loadPosts();
             if(activeUserSession.email.toLowerCase() === "n4062226@gmail.com") triggerInlineAdminEngineRefresh();
         }
@@ -630,7 +630,7 @@
             if(!confirm("Erase this timeline broadcast from network infrastructure?")) return;
             let posts = JSON.parse(localStorage.getItem('bunnii_app_posts')) || [];
             posts = posts.filter(p => p.id !== postId);
-            localStorage.setItem('bunnii_app_posts', JSON.stringify(posts));
+            // 'posts' नाम के नोड में सारा डेटा सेव होगा firebase.database().ref('posts').set(posts);
             loadPosts(); triggerInlineAdminEngineRefresh();
         }
 
@@ -687,7 +687,7 @@
         function likePost(id) {
             let posts = JSON.parse(localStorage.getItem('bunnii_app_posts')) || [];
             posts = posts.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p);
-            localStorage.setItem('bunnii_app_posts', JSON.stringify(posts)); loadPosts();
+            // 'posts' नाम के नोड में सारा डेटा सेव होगा firebase.database().ref('posts').set(posts); loadPosts();
         }
 
         // CHAT DOM TREE ENGINE LISTS
@@ -801,6 +801,12 @@
   ],
   "configuration_version": "1"
       }
+      {
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}
     </script>
 </body>
 </html>
