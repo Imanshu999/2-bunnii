@@ -277,28 +277,27 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
         import { 
-            getFirestore, collection, doc, setDoc, getDoc, getDocs, 
-            addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot 
+            getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, addDoc 
         } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
-        
-        // FIREBASE AUTH MODULE (यह पहले यहाँ मिसिंग था)
         import { 
             getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut 
         } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
-        // CONFIGURATION PARAMETERS (Replace with your actual keys)
+        // =======================================================
+        // ⚠️ यहाँ अपने असली FIREBASE CREDENTIALS को पेस्ट करें
+        // =======================================================
         const firebaseConfig = {
-            apiKey: "[Firebase API Key]",
-            authDomain: "[Firebase Project].firebaseapp.com",
-            projectId: "[Firebase Project ID]",
-            storageBucket: "[Firebase Storage Bucket]",
-            messagingSenderId: "[Sender ID]",
-            appId: "[App ID]"
+            apiKey: "YOUR_ACTUAL_FIREBASE_API_KEY", 
+            authDomain: "your-project-id.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project-id.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const auth = getAuth(app); // Auth इंजन इनिशियलाइज़ किया
+        const auth = getAuth(app);
 
         // SYSTEM ECOSYSTEM STATE MANAGERS
         let localFallbackDatabase = [];
@@ -308,17 +307,16 @@
         let cachedMediaType = null; 
         let targetSharePostId = null; 
         let isSignUpMode = false;
+        let unsubscribeChatListener = null;
 
         // REALTIME SYNC ENGINE FOR DATA ROUTING
         function initRealtimeDatabaseSync() {
-            // 1. Users Dynamic Synchronizer
             onSnapshot(collection(db, "users"), (snapshot) => {
                 localFallbackDatabase = [];
                 snapshot.forEach(docNode => {
                     localFallbackDatabase.push(docNode.data());
                 });
                 
-                // Active Session validation checks
                 if(activeUserSession) {
                     let currentMe = localFallbackDatabase.find(u => u.email === activeUserSession.email);
                     if(currentMe) {
@@ -329,7 +327,6 @@
                 }
             });
 
-            // 2. Feed Timeline Live Synchronizer
             const postsQuery = query(collection(db, "posts"), orderBy("timestamp", "desc"));
             onSnapshot(postsQuery, (snapshot) => {
                 const posts = [];
@@ -340,7 +337,6 @@
             });
         }
 
-        // DYNAMIC APP INITIALIZATION LAYERS
         window.addEventListener('DOMContentLoaded', () => {
             initRealtimeDatabaseSync();
             if(activeUserSession) { 
@@ -365,7 +361,10 @@
         }
         generateApple3DStream();
 
-        // FIXED TOGGLE MODE: अब स्क्रीन पर साइन-अप फील्ड्स दिखेंगे
+        // =======================================================
+        // 🚀 GLOBAL WINDOW SCOPING BINDINGS FOR BUTTON ONCLICKS
+        // =======================================================
+        
         window.toggleAuthMode = function() {
             isSignUpMode = !isSignUpMode;
             document.getElementById('signupFieldsContainer').style.display = isSignUpMode ? "block" : "none";
@@ -390,7 +389,6 @@
             document.getElementById('mediaPreviewBox').style.display = "none";
         };
 
-        // FIREBASE CLOUD NODE AUTH ROUTING (FULLY FIXED METHOD)
         window.handleAuth = async function() {
             const email = document.getElementById('authEmail').value.trim();
             const password = document.getElementById('authPassword').value;
@@ -405,7 +403,6 @@
                     
                     if(!fName || !lName || !mobileNum) return alert("All profile fields must be fulfilled!");
 
-                    // Firebase Auth से यूजर क्रिएट करना
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                     const user = userCredential.user;
 
@@ -421,16 +418,13 @@
                         followers: [], following: [] 
                     };
 
-                    // Firestore डेटाबेस में रिकॉर्ड राइट करना
                     await setDoc(doc(db, "users", user.uid), newUserNode);
                     activeUserSession = newUserNode;
                     alert("Node security registration completed successfully!");
                 } else {
-                    // Firebase Auth से लॉग इन करना
                     const userCredential = await signInWithEmailAndPassword(auth, email, password);
                     const user = userCredential.user;
                     
-                    // Firestore से रियल-टाइम नोड डेटा फेच करना
                     const userDoc = await getDoc(doc(db, "users", user.uid));
                     if(userDoc.exists()) {
                         activeUserSession = userDoc.data();
@@ -464,31 +458,6 @@
             }
         };
 
-        function synchronizeSystemState() {
-            if(!activeUserSession) return;
-            document.getElementById('authScreen').style.display = "none";
-            
-            document.getElementById('profileEmailLabel').innerText = activeUserSession.email;
-            document.getElementById('profileMobileLabel').innerText = "Mobile Phone: " + (activeUserSession.mobile || "N/A");
-            document.getElementById('profileUserHandleField').value = '@' + activeUserSession.username;
-            document.getElementById('myProfilePic').style.backgroundImage = `url('${activeUserSession.avatar}')`;
-            document.getElementById('myCountryBadge').innerHTML = `${activeUserSession.countryFlag || '🌐'} ${activeUserSession.countryName || 'Global Area'}`;
-
-            document.getElementById('statFollowers').innerText = activeUserSession.followers ? activeUserSession.followers.length : 0;
-            document.getElementById('statFollowing').innerText = activeUserSession.following ? activeUserSession.following.length : 0;
-
-            // EXCLUSIVE CREATOR MASTER KEY CHECK
-            if(activeUserSession.email.toLowerCase() === "n4062226@gmail.com") {
-                document.getElementById('dynamicAdminNavTab').style.display = "flex";
-                triggerInlineAdminEngineRefresh();
-            } else {
-                document.getElementById('dynamicAdminNavTab').style.display = "none";
-            }
-
-            loadChatTerminalUsers();
-            if(selectedChatUser) streamMessages();
-        }
-
         window.saveProfileIdentityData = async function() {
             let userField = document.getElementById('profileUserHandleField').value.trim();
             let parsedHandle = userField.replace('@', '');
@@ -503,35 +472,6 @@
             
             alert("Identity profile handle data synchronized!");
         };
-
-        function triggerInlineAdminEngineRefresh() {
-            if(activeUserSession.email.toLowerCase() !== "n4062226@gmail.com") return;
-            
-            document.getElementById('inlineAdminUsersCount').innerText = localFallbackDatabase.length;
-            const targetListDom = document.getElementById('inlineAdminUsersList');
-            if(!targetListDom) return;
-            targetListDom.innerHTML = "";
-
-            localFallbackDatabase.forEach(usr => {
-                targetListDom.innerHTML += `
-                    <div class="admin-edit-row">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-weight:bold; font-size:14px; color:var(--admin-gold);">Node: @${usr.username}</span>
-                            <span>${usr.countryFlag || '🌐'}</span>
-                        </div>
-                        <div style="font-size:11px; color:var(--text-muted);">Email: ${usr.email}</div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                            <input type="text" id="adm_usr_${usr.uid}" value="${usr.username}" placeholder="Edit Handle">
-                            <input type="text" id="adm_pass_${usr.uid}" value="${usr.pass || '123'}" placeholder="View/Edit Pass">
-                        </div>
-                        <div class="admin-edit-actions">
-                            <button class="sec-btn" style="border-color:crimson; color:crimson; padding:3px 8px; font-size:11px;" onclick="adminDeleteUserNode('${usr.uid}')"><i class="fa-solid fa-trash"></i> Wipe Node</button>
-                            <button class="sec-btn" style="border-color:var(--admin-gold); color:var(--admin-gold); padding:3px 8px; font-size:11px;" onclick="adminSaveUserNodeModifications('${usr.uid}')"><i class="fa-solid fa-cloud-arrow-up"></i> Push Write</button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
 
         window.adminSaveUserNodeModifications = async function(uid) {
             let targetHandle = document.getElementById(`adm_usr_${uid}`).value.trim();
@@ -563,32 +503,6 @@
             renderScannedUserCard(scannedUserNode, targetOutputCard);
         };
 
-        function renderScannedUserCard(userObject, outputBox) {
-            let followVerified = activeUserSession.following && activeUserSession.following.includes(userObject.email);
-            
-            let actionBtnMarkup = "";
-            if(userObject.email !== activeUserSession.email) {
-                if(followVerified) {
-                    actionBtnMarkup = `<button class="sec-btn" style="background:#00ffcc; color:black; border:none;" onclick="switchSection('chats'); openSecureChatChannel('${userObject.email}', '${userObject.username}')"><i class="fa-solid fa-message"></i> Secure Chat</button>`;
-                } else {
-                    actionBtnMarkup = `<button class="sec-btn" style="background:var(--accent-color); border:none;" onclick="triggerFollowEngine('${userObject.email}')"><i class="fa-solid fa-user-plus"></i> Connect Node</button>`;
-                }
-            } else { actionBtnMarkup = `<span style="font-size:12px; color:var(--text-muted);">Self Account</span>`; }
-
-            outputBox.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="width:40px; height:40px; border-radius:50%; background-image:url('${userObject.avatar}'); background-size:cover; background-position:center;"></div>
-                        <div>
-                            <div style="font-weight:bold; display:flex; align-items:center; gap:6px;">@${userObject.username} <span>${userObject.countryFlag || ''}</span></div>
-                            <div style="font-size:11px; color:var(--text-muted);">${userObject.firstName} ${userObject.lastName}</div>
-                        </div>
-                    </div>
-                    <div>${actionBtnMarkup}</div>
-                </div>
-            `;
-        }
-
         window.triggerFollowEngine = async function(recipientEmail) {
             let recipientUser = localFallbackDatabase.find(u => u.email === recipientEmail);
             if(!recipientUser || !activeUserSession) return;
@@ -606,7 +520,6 @@
             executeGlobalSearch();
         };
 
-        // FIREBASE LIVE DEPLOYMENT BROADCAST POST ENGINE
         window.createPost = async function() {
             const description = document.getElementById('postText').value;
             if(!description.trim() && !base64MediaCache) return;
@@ -635,74 +548,6 @@
             clearSelectedMedia();
         };
 
-        function renderPostsFeed(posts) {
-            const feedAreaBox = document.getElementById('feedArea'); 
-            const profileFeedBox = document.getElementById('myPostsArea');
-            if(!feedAreaBox || !profileFeedBox) return;
-
-            feedAreaBox.innerHTML = ""; 
-            profileFeedBox.innerHTML = "";
-            let generatedPostIndexCount = 0;
-
-            posts.forEach(p => {
-                renderTimelineBlock(p, feedAreaBox);
-                if(activeUserSession && p.email === activeUserSession.email) { 
-                    generatedPostIndexCount++; 
-                    renderTimelineBlock(p, profileFeedBox); 
-                }
-            });
-
-            if(document.getElementById('statPostsCount')) {
-                document.getElementById('statPostsCount').innerText = generatedPostIndexCount;
-            }
-            if(document.getElementById('inlineAdminPostsCount')) {
-                document.getElementById('inlineAdminPostsCount').innerText = posts.length;
-            }
-        }
-
-        function renderTimelineBlock(data, destinationContainer) {
-            let dynamicMediaEmbedCode = "";
-            if(data.img) dynamicMediaEmbedCode += `<div class="post-media-slot"><img src="${data.img}"></div>`;
-            if(data.vid) dynamicMediaEmbedCode += `<div class="post-media-slot"><video src="${data.vid}" controls loop></video></div>`;
-
-            let timelineContextInlineActionBtn = "";
-            if(activeUserSession && data.email !== activeUserSession.email) {
-                let checkFollowState = activeUserSession.following && activeUserSession.following.includes(data.email);
-                timelineContextInlineActionBtn = checkFollowState 
-                    ? `<button class="sec-btn" style="padding:2px 8px; font-size:11px; border-color:#00ffcc; margin-left:8px;" onclick="switchSection('chats'); openSecureChatChannel('${data.email}','${data.user}')"><i class="fa-solid fa-message"></i> Msg</button>`
-                    : `<button class="sec-btn" style="padding:2px 8px; font-size:11px; background:var(--accent-color); border:none; margin-left:8px;" onclick="triggerFollowEngine('${data.email}')"><i class="fa-solid fa-user-plus"></i> Connect</button>`;
-            }
-
-            let creatorDeletePostBtn = "";
-            if(activeUserSession && activeUserSession.email.toLowerCase() === "n4062226@gmail.com") {
-                creatorDeletePostBtn = `<button class="sec-btn" style="border-color:crimson; color:crimson; font-size:11px; padding:2px 6px;" onclick="adminModerateDeletePost('${data.id}')"><i class="fa-solid fa-trash-can"></i> Terminate Post</button>`;
-            }
-
-            destinationContainer.innerHTML += `
-                <div class="post-card" id="post_block_${data.id}">
-                    <div class="post-header">
-                        <span class="post-user">
-                            <div class="post-avatar" style="background-image:url('${data.avatar}')"></div>
-                            <div>
-                                <div style="display:flex; align-items:center; gap:4px;">
-                                    <strong>@${data.user}</strong> ${data.countryFlag || '🌐'} ${timelineContextInlineActionBtn}
-                                </div>
-                                <div class="post-timestamp">${data.timestampString}</div>
-                            </div>
-                        </span>
-                        ${creatorDeletePostBtn}
-                    </div>
-                    ${dynamicMediaEmbedCode}
-                    <div class="post-text">${data.text}</div>
-                    <div class="post-actions">
-                        <button class="action-btn" onclick="likePost('${data.id}', ${data.likes || 0})"><i class="fa-solid fa-heart" style="color:var(--accent-color)"></i> ${data.likes || 0}</button>
-                        <button class="action-btn" onclick="copyPostAssetLink('${data.assetUrl}')"><i class="fa-solid fa-copy"></i> Track Link</button>
-                        <button class="action-btn" style="color:#00ffcc;" onclick="openInstagramShareSheet('${data.id}')"><i class="fa-solid fa-share-nodes"></i> Share Node</button>
-                    </div>
-                </div>
-            `;
-        }
-
         window.adminModerateDeletePost = async function(postId) {
             if(!confirm("Erase this timeline broadcast from network infrastructure?")) return;
             await deleteDoc(doc(db, "posts", postId));
@@ -714,26 +559,25 @@
             await updateDoc(doc(db, "posts", id), { likes: currentLikes + 1 });
         };
 
-        // ENCRYPTED PIPELINE REALTIME CHAT IMPLEMENTATION
-        let unsubscribeChatListener = null;
-
         window.loadChatTerminalUsers = function() {
             const listTarget = document.getElementById('chatListTarget'); if(!listTarget) return;
             listTarget.innerHTML = "";
             
             localFallbackDatabase.forEach(u => { 
                 if(activeUserSession && u.email !== activeUserSession.email && activeUserSession.following && activeUserSession.following.includes(u.email)) {
-                    listTarget.innerHTML += `
-                        <div class="user-chat-card" onclick="openSecureChatChannel('${u.email}', '${u.username}')">
-                            <div style="display:flex; align-items:center; gap:12px;">
-                                <div style="width:36px; height:36px; border-radius:50%; background-image:url('${u.avatar}'); background-size:cover; border:1px solid var(--accent-color); background-position:center;"></div>
-                                <div>
-                                    <div style="font-weight:700; font-size:14px;">@${u.username} ${u.countryFlag || ''}</div>
-                                    <span style='color:#00ffcc; font-size:11px;'><i class='fa-solid fa-circle-nodes'></i> Encryption Matrix Secure</span>
-                                </div>
+                    const card = document.createElement('div');
+                    card.className = "user-chat-card";
+                    card.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="width:36px; height:36px; border-radius:50%; background-image:url('${u.avatar}'); background-size:cover; border:1px solid var(--accent-color); background-position:center;"></div>
+                            <div>
+                                <div style="font-weight:700; font-size:14px;">@${u.username} ${u.countryFlag || ''}</div>
+                                <span style='color:#00ffcc; font-size:11px;'><i class='fa-solid fa-circle-nodes'></i> Encryption Matrix Secure</span>
                             </div>
                         </div>
                     `;
+                    card.onclick = () => window.openSecureChatChannel(u.email, u.username);
+                    listTarget.appendChild(card);
                 }
             });
         };
@@ -767,34 +611,6 @@
             inputFieldElement.value = "";
         };
 
-        function streamMessages() {
-            if(!selectedChatUser || !activeUserSession) return;
-            const messageboxAreaElement = document.getElementById('chatMsgArea'); 
-            if(!messageboxAreaElement) return;
-
-            if(unsubscribeChatListener) unsubscribeChatListener();
-
-            const msgsQuery = query(collection(db, "messages"), orderBy("timestamp", "asc"));
-            
-            unsubscribeChatListener = onSnapshot(msgsQuery, (snapshot) => {
-                messageboxAreaElement.innerHTML = "";
-                snapshot.forEach(docNode => {
-                    let m = docNode.data();
-                    if((m.sender === activeUserSession.email && m.receiver === selectedChatUser.email) || 
-                       (m.sender === selectedChatUser.email && m.receiver === activeUserSession.email)) {
-                        
-                        let validationShareState = m.text.includes("🔗 SHARED DATA CARD:");
-                        let injectionMarkup = validationShareState ? `<div class="shared-card-bubble">${m.text.replace(/\n/g, '<br>')}</div>` : m.text;
-                        let bubbleClass = (m.sender === activeUserSession.email) ? 'msg-sent' : 'msg-received';
-                        
-                        messageboxAreaElement.innerHTML += `<div class="msg-bubble ${bubbleClass}">${injectionMarkup}</div>`;
-                    }
-                });
-                messageboxAreaElement.scrollTop = messageboxAreaElement.scrollHeight;
-            });
-        }
-
-        // POPUP ROUTING AND LINKS SHARE MANAGEMENT 
         window.openInstagramShareSheet = function(postId) {
             targetSharePostId = postId;
             const openSheetContainer = document.getElementById('globalShareSheet');
@@ -810,15 +626,17 @@
                 arrayList.forEach(emailIdentity => {
                     let friendNode = localFallbackDatabase.find(u => u.email === emailIdentity);
                     if(friendNode) {
-                        innerScrollList.innerHTML += `
-                            <div class="share-user-row">
-                                <div style="display:flex; align-items:center; gap:10px;">
-                                    <div style="width:32px; height:32px; border-radius:50%; background-image:url('${friendNode.avatar}'); background-size:cover; background-position:center;"></div>
-                                    <span style="font-weight:bold; font-size:14px;">@${friendNode.username} ${friendNode.countryFlag || ''}</span>
-                                </div>
-                                <button class="share-send-btn" onclick="executePostTransmissionDirect('${friendNode.email}', '${friendNode.username}')">Route Share</button>
+                        const row = document.createElement('div');
+                        row.className = "share-user-row";
+                        row.innerHTML = `
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <div style="width:32px; height:32px; border-radius:50%; background-image:url('${friendNode.avatar}'); background-size:cover; background-position:center;"></div>
+                                <span style="font-weight:bold; font-size:14px;">@${friendNode.username} ${friendNode.countryFlag || ''}</span>
                             </div>
+                            <button class="share-send-btn">Route Share</button>
                         `;
+                        row.querySelector('button').onclick = () => window.executePostTransmissionDirect(friendNode.email, friendNode.username);
+                        innerScrollList.appendChild(row);
                     }
                 });
             }
@@ -848,7 +666,7 @@
             
             await addDoc(collection(db, "messages"), chatMessagePayloadObj);
             alert(`Asset node shared securely to @${friendUsername}`); 
-            closeShareSheet();
+            window.closeShareSheet();
         };
 
         window.switchSection = function(id, element) {
@@ -857,17 +675,236 @@
             
             const selectedSection = document.getElementById(id);
             if(selectedSection) selectedSection.classList.add('active');
-            if(element) element.classList.add('active');
+            
+            if(element) {
+                element.classList.add('active');
+            } else {
+                // इनलाइन कॉल्स के लिए नेविगेशन आइटम्स को मैन्युअली एक्टिवेट करना
+                if(id === 'home') document.querySelector('.bottom-nav .nav-item:nth-child(1)').classList.add('active');
+                if(id === 'chats') document.querySelector('.bottom-nav .nav-item:nth-child(2)').classList.add('active');
+                if(id === 'profile') document.querySelector('.bottom-nav .nav-item:nth-child(3)').classList.add('active');
+            }
 
             if(id === 'adminArea') triggerInlineAdminEngineRefresh();
         };
 
-        // SYSTEM LOGOUT METHOD (Auth से भी सिंक किया हुआ)
         window.logout = async function() { 
             await signOut(auth);
             localStorage.removeItem('bunnii_app_session'); 
             location.reload(); 
         };
+
+        // =======================================================
+        // 🔄 INTERNAL CORE CORE ENGINES
+        // =======================================================
+
+        function synchronizeSystemState() {
+            if(!activeUserSession) return;
+            document.getElementById('authScreen').style.display = "none";
+            
+            document.getElementById('profileEmailLabel').innerText = activeUserSession.email;
+            document.getElementById('profileMobileLabel').innerText = "Mobile Phone: " + (activeUserSession.mobile || "N/A");
+            document.getElementById('profileUserHandleField').value = '@' + activeUserSession.username;
+            document.getElementById('myProfilePic').style.backgroundImage = `url('${activeUserSession.avatar}')`;
+            document.getElementById('myCountryBadge').innerHTML = `${activeUserSession.countryFlag || '🌐'} ${activeUserSession.countryName || 'Global Area'}`;
+
+            document.getElementById('statFollowers').innerText = activeUserSession.followers ? activeUserSession.followers.length : 0;
+            document.getElementById('statFollowing').innerText = activeUserSession.following ? activeUserSession.following.length : 0;
+
+            if(activeUserSession.email.toLowerCase() === "n4062226@gmail.com") {
+                document.getElementById('dynamicAdminNavTab').style.display = "flex";
+                triggerInlineAdminEngineRefresh();
+            } else {
+                document.getElementById('dynamicAdminNavTab').style.display = "none";
+            }
+
+            window.loadChatTerminalUsers();
+            if(selectedChatUser) streamMessages();
+        }
+
+        function triggerInlineAdminEngineRefresh() {
+            if(activeUserSession.email.toLowerCase() !== "n4062226@gmail.com") return;
+            
+            document.getElementById('inlineAdminUsersCount').innerText = localFallbackDatabase.length;
+            const targetListDom = document.getElementById('inlineAdminUsersList');
+            if(!targetListDom) return;
+            targetListDom.innerHTML = "";
+
+            localFallbackDatabase.forEach(usr => {
+                const row = document.createElement('div');
+                row.className = "admin-edit-row";
+                row.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-weight:bold; font-size:14px; color:var(--admin-gold);">Node: @${usr.username}</span>
+                        <span>${usr.countryFlag || '🌐'}</span>
+                    </div>
+                    <div style="font-size:11px; color:var(--text-muted);">Email: ${usr.email}</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <input type="text" id="adm_usr_${usr.uid}" value="${usr.username}" placeholder="Edit Handle">
+                        <input type="text" id="adm_pass_${usr.uid}" value="${usr.pass || '123'}" placeholder="View/Edit Pass">
+                    </div>
+                    <div class="admin-edit-actions">
+                        <button class="sec-btn wipe-btn" style="border-color:crimson; color:crimson; padding:3px 8px; font-size:11px;"><i class="fa-solid fa-trash"></i> Wipe Node</button>
+                        <button class="sec-btn push-btn" style="border-color:var(--admin-gold); color:var(--admin-gold); padding:3px 8px; font-size:11px;"><i class="fa-solid fa-cloud-arrow-up"></i> Push Write</button>
+                    </div>
+                `;
+                row.querySelector('.wipe-btn').onclick = () => window.adminDeleteUserNode(usr.uid);
+                row.querySelector('.push-btn').onclick = () => window.adminSaveUserNodeModifications(usr.uid);
+                targetListDom.appendChild(row);
+            });
+        }
+
+        function renderScannedUserCard(userObject, outputBox) {
+            let followVerified = activeUserSession.following && activeUserSession.following.includes(userObject.email);
+            
+            outputBox.innerHTML = "";
+            const container = document.createElement('div');
+            container.style.cssText = "display:flex; justify-content:space-between; align-items:center; width:100%;";
+            
+            let actionBtnMarkup = "";
+            if(userObject.email !== activeUserSession.email) {
+                if(followVerified) {
+                    actionBtnMarkup = `<button class="sec-btn chat-route-btn" style="background:#00ffcc; color:black; border:none;"><i class="fa-solid fa-message"></i> Secure Chat</button>`;
+                } else {
+                    actionBtnMarkup = `<button class="sec-btn follow-route-btn" style="background:var(--accent-color); border:none;"><i class="fa-solid fa-user-plus"></i> Connect Node</button>`;
+                }
+            } else { 
+                actionBtnMarkup = `<span style="font-size:12px; color:var(--text-muted);">Self Account</span>`; 
+            }
+
+            container.innerHTML = `
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:40px; height:40px; border-radius:50%; background-image:url('${userObject.avatar}'); background-size:cover; background-position:center;"></div>
+                    <div>
+                        <div style="font-weight:bold; display:flex; align-items:center; gap:6px;">@${userObject.username} <span>${userObject.countryFlag || ''}</span></div>
+                        <div style="font-size:11px; color:var(--text-muted);">${userObject.firstName} ${userObject.lastName}</div>
+                    </div>
+                </div>
+                <div class="action-slot">${actionBtnMarkup}</div>
+            `;
+
+            const chatBtn = container.querySelector('.chat-route-btn');
+            const followBtn = container.querySelector('.follow-route-btn');
+            if(chatBtn) chatBtn.onclick = () => { window.switchSection('chats'); window.openSecureChatChannel(userObject.email, userObject.username); };
+            if(followBtn) followBtn.onclick = () => window.triggerFollowEngine(userObject.email);
+
+            outputBox.appendChild(container);
+        }
+
+        function renderPostsFeed(posts) {
+            const feedAreaBox = document.getElementById('feedArea'); 
+            const profileFeedBox = document.getElementById('myPostsArea');
+            if(!feedAreaBox || !profileFeedBox) return;
+
+            feedAreaBox.innerHTML = ""; 
+            profileFeedBox.innerHTML = "";
+            let generatedPostIndexCount = 0;
+
+            posts.forEach(p => {
+                renderTimelineBlock(p, feedAreaBox);
+                if(activeUserSession && p.email === activeUserSession.email) { 
+                    generatedPostIndexCount++; 
+                    renderTimelineBlock(p, profileFeedBox); 
+                }
+            });
+
+            if(document.getElementById('statPostsCount')) {
+                document.getElementById('statPostsCount').innerText = generatedPostIndexCount;
+            }
+            if(document.getElementById('inlineAdminPostsCount')) {
+                document.getElementById('inlineAdminPostsCount').innerText = posts.length;
+            }
+        }
+
+        function renderTimelineBlock(data, destinationContainer) {
+            let dynamicMediaEmbedCode = "";
+            if(data.img) dynamicMediaEmbedCode += `<div class="post-media-slot"><img src="${data.img}"></div>`;
+            if(data.vid) dynamicMediaEmbedCode += `<div class="post-media-slot"><video src="${data.vid}" controls loop></video></div>`;
+
+            const card = document.createElement('div');
+            card.className = "post-card";
+            card.id = `post_block_${data.id}`;
+
+            let timelineContextInlineActionBtnMarkup = "";
+            if(activeUserSession && data.email !== activeUserSession.email) {
+                let checkFollowState = activeUserSession.following && activeUserSession.following.includes(data.email);
+                timelineContextInlineActionBtnMarkup = checkFollowState 
+                    ? `<button class="sec-btn inline-msg-btn" style="padding:2px 8px; font-size:11px; border-color:#00ffcc; margin-left:8px;"><i class="fa-solid fa-message"></i> Msg</button>`
+                    : `<button class="sec-btn inline-connect-btn" style="padding:2px 8px; font-size:11px; background:var(--accent-color); border:none; margin-left:8px;"><i class="fa-solid fa-user-plus"></i> Connect</button>`;
+            }
+
+            let creatorDeletePostBtnMarkup = "";
+            if(activeUserSession && activeUserSession.email.toLowerCase() === "n4062226@gmail.com") {
+                creatorDeletePostBtnMarkup = `<button class="sec-btn inline-terminate-btn" style="border-color:crimson; color:crimson; font-size:11px; padding:2px 6px;"><i class="fa-solid fa-trash-can"></i> Terminate Post</button>`;
+            }
+
+            card.innerHTML = `
+                <div class="post-header">
+                    <span class="post-user">
+                        <div class="post-avatar" style="background-image:url('${data.avatar}')"></div>
+                        <div>
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <strong>@${data.user}</strong> ${data.countryFlag || '🌐'} <span class="inline-action-slot">${timelineContextInlineActionBtnMarkup}</span>
+                            </div>
+                            <div class="post-timestamp">${data.timestampString}</div>
+                        </div>
+                    </span>
+                    <span class="terminate-slot">${creatorDeletePostBtnMarkup}</span>
+                </div>
+                ${dynamicMediaEmbedCode}
+                <div class="post-text">${data.text}</div>
+                <div class="post-actions">
+                    <button class="action-btn like-trigger"><i class="fa-solid fa-heart" style="color:var(--accent-color)"></i> ${data.likes || 0}</button>
+                    <button class="action-btn link-trigger"><i class="fa-solid fa-copy"></i> Track Link</button>
+                    <button class="action-btn share-trigger" style="color:#00ffcc;"><i class="fa-solid fa-share-nodes"></i> Share Node</button>
+                </div>
+            `;
+
+            // बटन इवेंट्स असाइनमेंट
+            const inlineMsg = card.querySelector('.inline-msg-btn');
+            const inlineConnect = card.querySelector('.inline-connect-btn');
+            const inlineTerminate = card.querySelector('.inline-terminate-btn');
+
+            if(inlineMsg) inlineMsg.onclick = () => { window.switchSection('chats'); window.openSecureChatChannel(data.email, data.user); };
+            if(inlineConnect) inlineConnect.onclick = () => window.triggerFollowEngine(data.email);
+            if(inlineTerminate) inlineTerminate.onclick = () => window.adminModerateDeletePost(data.id);
+
+            card.querySelector('.like-trigger').onclick = () => window.likePost(data.id, data.likes || 0);
+            card.querySelector('.link-trigger').onclick = () => window.copyPostAssetLink(data.assetUrl);
+            card.querySelector('.share-trigger').onclick = () => window.openInstagramShareSheet(data.id);
+
+            destinationContainer.appendChild(card);
+        }
+
+        function streamMessages() {
+            if(!selectedChatUser || !activeUserSession) return;
+            const messageboxAreaElement = document.getElementById('chatMsgArea'); 
+            if(!messageboxAreaElement) return;
+
+            if(unsubscribeChatListener) unsubscribeChatListener();
+
+            const msgsQuery = query(collection(db, "messages"), orderBy("timestamp", "asc"));
+            
+            unsubscribeChatListener = onSnapshot(msgsQuery, (snapshot) => {
+                messageboxAreaElement.innerHTML = "";
+                snapshot.forEach(docNode => {
+                    let m = docNode.data();
+                    if((m.sender === activeUserSession.email && m.receiver === selectedChatUser.email) || 
+                       (m.sender === selectedChatUser.email && m.receiver === activeUserSession.email)) {
+                        
+                        let validationShareState = m.text.includes("🔗 SHARED DATA CARD:");
+                        let injectionMarkup = validationShareState ? `<div class="shared-card-bubble">${m.text.replace(/\n/g, '<br>')}</div>` : m.text;
+                        let bubbleClass = (m.sender === activeUserSession.email) ? 'msg-sent' : 'msg-received';
+                        
+                        const msgBubble = document.createElement('div');
+                        msgBubble.className = `msg-bubble ${bubbleClass}`;
+                        msgBubble.innerHTML = injectionMarkup;
+                        messageboxAreaElement.appendChild(msgBubble);
+                    }
+                });
+                messageboxAreaElement.scrollTop = messageboxAreaElement.scrollHeight;
+            });
+        }
     </script>
 </body>
 </html>
