@@ -280,6 +280,11 @@
             getFirestore, collection, doc, setDoc, getDoc, getDocs, 
             addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot 
         } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+        
+        // FIREBASE AUTH MODULE (यह पहले यहाँ मिसिंग था)
+        import { 
+            getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut 
+        } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 
         // CONFIGURATION PARAMETERS (Replace with your actual keys)
         const firebaseConfig = {
@@ -293,6 +298,7 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app); // Auth इंजन इनिशियलाइज़ किया
 
         // SYSTEM ECOSYSTEM STATE MANAGERS
         let localFallbackDatabase = [];
@@ -359,6 +365,7 @@
         }
         generateApple3DStream();
 
+        // FIXED TOGGLE MODE: अब स्क्रीन पर साइन-अप फील्ड्स दिखेंगे
         window.toggleAuthMode = function() {
             isSignUpMode = !isSignUpMode;
             document.getElementById('signupFieldsContainer').style.display = isSignUpMode ? "block" : "none";
@@ -383,47 +390,61 @@
             document.getElementById('mediaPreviewBox').style.display = "none";
         };
 
-        // FIREBASE CLOUD NODE AUTH ROUTING
+        // FIREBASE CLOUD NODE AUTH ROUTING (FULLY FIXED METHOD)
         window.handleAuth = async function() {
             const email = document.getElementById('authEmail').value.trim();
             const password = document.getElementById('authPassword').value;
             if(!email || !password) return alert("System requires email and token password parameters.");
 
-            let verifiedRecord = localFallbackDatabase.find(u => u.email.toLowerCase() === email.toLowerCase());
+            try {
+                if(isSignUpMode) {
+                    const fName = document.getElementById('regFirstName').value.trim();
+                    const lName = document.getElementById('regLastName').value.trim();
+                    const mobileNum = document.getElementById('regMobile').value.trim();
+                    const countryRawData = document.getElementById('regCountry').value; 
+                    
+                    if(!fName || !lName || !mobileNum) return alert("All profile fields must be fulfilled!");
 
-            if(isSignUpMode) {
-                if(verifiedRecord) return alert("This Gmail identity is already linked to another active node.");
-                
-                const fName = document.getElementById('regFirstName').value.trim();
-                const lName = document.getElementById('regLastName').value.trim();
-                const mobileNum = document.getElementById('regMobile').value.trim();
-                const countryRawData = document.getElementById('regCountry').value; 
-                
-                if(!fName || !lName || !mobileNum) return alert("All profile fields must be fulfilled!");
+                    // Firebase Auth से यूजर क्रिएट करना
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
 
-                const dataTokens = countryRawData.split('|');
-                let randomizedHandle = fName.toLowerCase() + Date.now().toString().slice(-4);
-                let generatedUid = 'u_' + Date.now();
+                    const dataTokens = countryRawData.split('|');
+                    let randomizedHandle = fName.toLowerCase() + Date.now().toString().slice(-4);
 
-                let newUserNode = { 
-                    uid: generatedUid, username: randomizedHandle, email: email, pass: password,
-                    firstName: fName, lastName: lName, mobile: mobileNum,
-                    countryFlag: dataTokens[0], countryName: dataTokens[1],
-                    avatar: "https://api.dicebear.com/7.x/pixel-art/svg?seed=" + randomizedHandle, 
-                    followers: [], following: [] 
-                };
+                    let newUserNode = { 
+                        uid: user.uid, 
+                        username: randomizedHandle, email: email, pass: password,
+                        firstName: fName, lastName: lName, mobile: mobileNum,
+                        countryFlag: dataTokens[0], countryName: dataTokens[1],
+                        avatar: "https://api.dicebear.com/7.x/pixel-art/svg?seed=" + randomizedHandle, 
+                        followers: [], following: [] 
+                    };
 
-                await setDoc(doc(db, "users", generatedUid), newUserNode);
-                verifiedRecord = newUserNode;
+                    // Firestore डेटाबेस में रिकॉर्ड राइट करना
+                    await setDoc(doc(db, "users", user.uid), newUserNode);
+                    activeUserSession = newUserNode;
+                    alert("Node security registration completed successfully!");
+                } else {
+                    // Firebase Auth से लॉग इन करना
+                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+                    
+                    // Firestore से रियल-टाइम नोड डेटा फेच करना
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    if(userDoc.exists()) {
+                        activeUserSession = userDoc.data();
+                    } else {
+                        return alert("User configurations missing in Cloud Firestore Database.");
+                    }
+                }
+
+                localStorage.setItem('bunnii_app_session', JSON.stringify(activeUserSession));
+                synchronizeSystemState();
+
+            } catch (error) {
+                alert("Authorization Denied: " + error.message);
             }
-
-            if(!verifiedRecord || verifiedRecord.pass !== password) {
-                return alert("Security Authorization Failure: Invalid Node Parameters!");
-            }
-
-            activeUserSession = verifiedRecord;
-            localStorage.setItem('bunnii_app_session', JSON.stringify(activeUserSession));
-            synchronizeSystemState();
         };
 
         window.updateProfilePictureEngine = async function(input) {
@@ -436,9 +457,7 @@
                     activeUserSession.avatar = imgString;
                     localStorage.setItem('bunnii_app_session', JSON.stringify(activeUserSession));
                     
-                    // Firestore Write Nodes
                     await updateDoc(doc(db, "users", activeUserSession.uid), { avatar: imgString });
-                    
                     alert("Profile visual configuration committed!");
                 };
                 reader.readAsDataURL(input.files[0]);
@@ -458,7 +477,7 @@
             document.getElementById('statFollowers').innerText = activeUserSession.followers ? activeUserSession.followers.length : 0;
             document.getElementById('statFollowing').innerText = activeUserSession.following ? activeUserSession.following.length : 0;
 
-            // EXCLUSIVE JET-LOCK CREATOR MASTER KEY CHECK
+            // EXCLUSIVE CREATOR MASTER KEY CHECK
             if(activeUserSession.email.toLowerCase() === "n4062226@gmail.com") {
                 document.getElementById('dynamicAdminNavTab').style.display = "flex";
                 triggerInlineAdminEngineRefresh();
@@ -814,7 +833,6 @@
         window.executePostTransmissionDirect = async function(friendEmail, friendUsername) {
             if(!targetSharePostId) return;
             
-            // Get post snippet directly without needing separate cache arrays
             const docSnap = await getDoc(doc(db, "posts", targetSharePostId));
             if(!docSnap.exists()) return;
             let focusedObject = docSnap.data();
@@ -844,7 +862,9 @@
             if(id === 'adminArea') triggerInlineAdminEngineRefresh();
         };
 
-        window.logout = function() { 
+        // SYSTEM LOGOUT METHOD (Auth से भी सिंक किया हुआ)
+        window.logout = async function() { 
+            await signOut(auth);
             localStorage.removeItem('bunnii_app_session'); 
             location.reload(); 
         };
